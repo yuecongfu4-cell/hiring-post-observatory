@@ -41,13 +41,13 @@
       if(!raw||!['posts','comments','updates'].every(k=>Array.isArray(raw[k])))throw Error('备份缺少帖子、评论或快照更新数组');
       if(['posts','comments','updates'].some(k=>raw[k].length>20000))throw Error('备份单类记录超过 20,000 条');
       const dest={posts:[],comments:[],updates:[]},reviews=new Set(),ids=new Set(b.posts.map(p=>p.id));
+      const metaKeys=['submitterAlias','submittedAt','clientId','decisionHistory','reviewDecisionAt','reviewDecisionBy','cloudSynced','duplicateOf','conflict'];
       function statusAndId(x){if(!x||typeof x!=='object'||!states.includes(x.reviewStatus)||typeof x.reviewId!=='string'||!x.reviewId||reviews.has(x.reviewId))throw Error('备份审核状态或审核编号无效');reviews.add(x.reviewId);}
-      for(const p of raw.posts){statusAndId(p);const v=C.normalizePost(p);if(v.errors.length)throw Error('备份帖子无效：'+v.errors.join('；'));if(ids.has(v.record.id))throw Error('备份存在重复帖子编号');ids.add(v.record.id);dest.posts.push({...v.record,reviewId:p.reviewId,reviewStatus:p.reviewStatus});}
-      const allPosts=b.posts.concat(dest.posts),commentIds=new Set(b.comments.map(c=>c.id));
-      for(const c of raw.comments){statusAndId(c);const v=C.normalizeComment(c,{posts:allPosts});if(v.errors.length)throw Error('备份评论无效：'+v.errors.join('；'));if(commentIds.has(v.record.id))throw Error('备份评论编号重复');commentIds.add(v.record.id);dest.comments.push({...v.record,reviewId:c.reviewId,reviewStatus:c.reviewStatus});}
-      for(const u of raw.updates){statusAndId(u);if(typeof u.postId!=='string'||!ids.has(u.postId))throw Error('备份快照的目标帖子不存在');const v=C.normalizePost(u.record);if(v.errors.length)throw Error('备份快照无效：'+v.errors.join('；'));const target=allPosts.find(p=>p.id===u.postId);if(C.normalizeUrl(target.url)&&C.normalizeUrl(target.url)!==v.record.url)throw Error('备份快照链接与目标帖子不同');dest.updates.push({postId:u.postId,record:{...v.record,id:u.postId,reviewStatus:u.reviewStatus},reviewId:u.reviewId,reviewStatus:u.reviewStatus,previous:null,changes:{}});}
-      const materialized=C.buildDataset(b,dest);if(materialized.meta.skippedAdditions.length)throw Error('备份包含重复、过期或冲突的已审核记录');
-      for(const c of dest.comments)if(c.reviewStatus==='approved'&&!materialized.comments.some(x=>x.id===c.id))throw Error('备份的已审核评论无法关联或来源重复');
+      function carryMeta(x){const meta={};metaKeys.forEach(k=>{if(x&&Object.prototype.hasOwnProperty.call(x,k))meta[k]=clone(x[k]);});return meta;}
+      for(const p of raw.posts){statusAndId(p);const v=C.normalizePost(p);if(v.errors.length)throw Error('备份帖子无效：'+v.errors.join('；'));ids.add(v.record.id);dest.posts.push({...v.record,...carryMeta(p),reviewId:p.reviewId,reviewStatus:p.reviewStatus});}
+      const allPosts=b.posts.concat(dest.posts);
+      for(const c of raw.comments){statusAndId(c);const v=C.normalizeComment(c,{posts:allPosts});if(v.errors.length)throw Error('备份评论无效：'+v.errors.join('；'));dest.comments.push({...v.record,...carryMeta(c),reviewId:c.reviewId,reviewStatus:c.reviewStatus});}
+      for(const u of raw.updates){statusAndId(u);if(typeof u.postId!=='string'||!ids.has(u.postId))throw Error('备份快照的目标帖子不存在');const v=C.normalizePost(u.record);if(v.errors.length)throw Error('备份快照无效：'+v.errors.join('；'));const target=allPosts.find(p=>p.id===u.postId);if(C.normalizeUrl(target.url)&&C.normalizeUrl(target.url)!==v.record.url)throw Error('备份快照链接与目标帖子不同');dest.updates.push({postId:u.postId,record:{...v.record,id:u.postId,reviewStatus:u.reviewStatus},reviewId:u.reviewId,reviewStatus:u.reviewStatus,previous:u.previous||null,changes:u.changes||{},warnings:Array.isArray(u.warnings)?clone(u.warnings):[],...carryMeta(u)});}
       return dest;
     }
     out.additions=validateAdditions(input.additions);

@@ -7,7 +7,7 @@
   <style>
     body.support-page{margin:0;background:#F7F7F8;color:#18191B;font-family:Manrope,"Noto Sans SC","Microsoft YaHei",sans-serif;font-size:16px;line-height:1.5}.support-shell{width:min(100% - 48px,960px);margin:auto}.support-header{display:flex;align-items:center;justify-content:space-between;gap:24px;min-height:88px;border-bottom:1px solid #dedee1}.support-brand{font-weight:700;text-decoration:none}.support-page a{color:#18191B;text-underline-offset:4px}.support-nav{display:flex;flex-wrap:wrap;gap:24px;font-size:14px}.support-nav a[aria-current=page]{color:#FF4F00}.support-main{padding:64px 0 80px}.support-back{display:inline-block;margin-bottom:32px;font-size:14px}.support-page h1{font-size:48px;line-height:1;font-weight:600;letter-spacing:-.04em;margin:0 0 24px;text-wrap:balance}.support-lead{font-size:18px;line-height:28px;color:#55575c;max-width:720px;margin-bottom:48px}.support-page h2{font-size:24px;line-height:32px;font-weight:600;margin:0 0 16px}.support-page section{padding:32px 0;border-top:1px solid #dedee1}.support-page p,.support-page li{max-width:780px;text-wrap:pretty}.support-page p{margin:12px 0}.support-page li+li{margin-top:8px}.support-footer{border-top:1px solid #dedee1;padding:24px 0 40px;display:flex;flex-wrap:wrap;gap:16px 24px;font-size:14px;color:#55575c}@media(max-width:640px){.support-shell{width:calc(100% - 32px)}.support-header{align-items:flex-start;flex-direction:column;justify-content:center;padding:20px 0;gap:16px}.support-main{padding:40px 0 56px}.support-page h1{font-size:36px;line-height:40px}.support-nav{gap:20px}}
   </style>
-<script src="i18n-catalog.js?v=3" defer></script><script src="i18n.js?v=2" defer></script>
+<script src="i18n-catalog.js?v=4" defer></script><script src="cloud-i18n.js?v=1" defer></script><script src="i18n.js?v=3" defer></script>
 </head>
 <body class="support-page">
   <div class="support-shell">
@@ -18,8 +18,8 @@
       <section><h2>项目用途</h2><p>工作台用于整理你已取得的真实帖子和评论、维护观察记录、审核研究样本，并比较冻结报告与工作版本。统计仅描述当前选定材料，不构成平台总体估计、因果结论或未来互动表现预测。</p></section>
       <section><h2>资料使用责任</h2><p>请只导入你有权处理的公开资料或已获授权材料，遵守来源平台的使用条件与适用的研究要求。导入前完成脱敏，不输入私人信息、账号凭据或未经授权的内容。</p><p>工作台不会自动登录或抓取领英，也不提供绕过登录、权限或访问限制的功能。需要补充材料时，请通过你已获授权的方式取得，再手动录入或导入。</p></section>
       <section><h2>审核与引用</h2><p>导入成功不等于材料真实或已符合研究口径。请核对来源、日期、互动数、评论关联和重复情况；草稿、待审核记录和可用分析样本应分别理解。</p><p>在论文、报告或对外材料中引用结果时，请注明所选样本版本、筛选条件、观察时间和必要限制。关键词与自动主题线索需要人工复核后再形成研究判断。</p></section>
-      <section><h2>保存与备份</h2><p>工作材料保存在当前浏览器的本地存储中。请定期导出 JSON 备份，并在清除网站数据、更换设备或恢复旧备份前保存当前工作区。你下载和分享的文件由你自行管理。</p><p>浏览器存储可用性、设备状态与手动修改可能影响数据保留。重要研究材料应在工作台之外保留来源记录与受控备份。</p></section>
-      <section><h2>版本与说明</h2><p>冻结报告用于保留既有研究基准，工作版本用于继续补充和审核。请结合当前页面的版本标识解释统计，不将两种口径合并为未经核验的样本量。</p><p>具体操作见<a href="./help.html">使用帮助</a>；本地数据处理方式见<a href="./privacy.html">隐私说明</a>。</p></section>
+      <section><h2>共享保存与备份</h2><p>工作材料会同步到 Firebase Firestore，并在当前浏览器保留缓存。站点不设账号或角色权限；任何访问者都可以查看、提交和审核，但云端记录采用追加式设计，工作台不提供物理删除。请勿提交私人信息或未经授权的材料。</p><p>请定期导出 JSON 备份，并在清除网站数据、更换设备或恢复旧备份前保存当前工作区。浏览器缓存、网络状态与手动修改可能影响本地副本；重要研究材料应在工作台之外保留来源记录与受控备份。</p></section>
+      <section><h2>版本与说明</h2><p>冻结报告用于保留既有研究基准，工作版本用于继续补充和审核；报告版本也会在全组共享。请结合当前页面的版本标识解释统计，不将两种口径合并为未经核验的样本量。</p><p>具体操作见<a href="./help.html">使用帮助</a>；云端与本地数据处理方式见<a href="./privacy.html">隐私说明</a>。</p></section>
     </main>
     <footer class="support-footer"><span>职帖观察站</span><a href="./index.html">返回工作台</a><a href="./help.html">使用帮助</a><a href="./privacy.html">隐私说明</a></footer>
   </div>

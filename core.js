@@ -346,7 +346,7 @@
   }
   function snapshotOrder(incoming, previous) {
     var a = parseDate(incoming && incoming.collectedAt), b = parseDate(previous && previous.collectedAt);
-    return { incoming: a, previous: b, older: !!(a && b && a < b), missing: !a || !b };
+    return { incoming: a, previous: b, older: !!(a && b && a < b), sameTime: !!(a && b && a.getTime() === b.getTime()), missing: !a || !b };
   }
   function deduplicatePosts(incoming, existing) {
     var unique = [], duplicates = [], updates = [], errors = [];
@@ -365,6 +365,7 @@
         var order = snapshotOrder(record, match);
         if (order.older) { errors.push({ record: record, existingId: str(match.id), errors: ['观察日期早于当前快照，拒绝用旧快照覆盖较新的互动数'] }); return; }
         var changes = changesBetween(match, record);
+        if (order.sameTime && Object.keys(changes).length) { errors.push({ record: record, existingId: str(match.id), errors: ['同一观察时点存在不同快照，已标记为冲突；请核对来源与采集时间'] }); return; }
         if (!Object.keys(changes).length) { duplicates.push({ record: record, existingId: str(match.id), reason: 'same_snapshot', label: '相同帖子与相同快照' }); return; }
         record.id = str(match.id);
         record.reviewStatus = 'draft';
@@ -405,6 +406,7 @@
       if (at < 0) { skipped.push({ type: 'update', id: id, reason: '目标帖子不存在' }); return; }
       var current = dataset.posts[at], order = snapshotOrder(raw, current);
       if (order.older || (!order.incoming && order.previous)) { skipped.push({ type: 'update', id: id, reason: order.older ? '旧快照不能覆盖较新的快照' : '更新缺少观察日期，无法覆盖已有日期的快照' }); return; }
+      if (order.sameTime) { skipped.push({ type: 'update', id: id, reason: Object.keys(changesBetween(current, raw)).length ? '同一观察时点存在不同快照，保留为冲突' : '相同观察时点与快照，无需重复应用' }); return; }
       var incomingUrl = own(raw, 'url') ? normalizeUrl(raw.url) : '';
       var currentUrl = normalizeUrl(current.url);
       if (incomingUrl && currentUrl && incomingUrl !== currentUrl) { skipped.push({ type: 'update', id: id, reason: '更新链接与目标帖子不同' }); return; }

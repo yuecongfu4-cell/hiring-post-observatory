@@ -1,0 +1,123 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function baseOk() {
+      return request.resource.data.workspace == 'com5507-main'
+        && request.resource.data.schemaVersion == '1';
+    }
+
+    function recordOk(recordId) {
+      let data = request.resource.data;
+      return baseOk()
+        && data.keys().hasOnly([
+          'workspace', 'schemaVersion', 'baselineVersion', 'baselineHash',
+          'kind', 'reviewId', 'submitterAlias', 'clientId', 'submittedAt',
+          'recordJson'
+        ])
+        && data.baselineVersion == 'baseline-20261118'
+        && data.baselineHash == 'a21d4cfacd65754daa6fbcc72510d5ddc01246f6454358b03b3686d583f65afd'
+        && data.kind in ['posts', 'comments', 'updates']
+        && data.reviewId == recordId
+        && data.reviewId is string
+        && data.reviewId.size() > 0
+        && data.reviewId.size() <= 180
+        && data.submitterAlias is string
+        && data.submitterAlias.size() > 0
+        && data.submitterAlias.size() <= 40
+        && data.clientId is string
+        && data.clientId.size() > 0
+        && data.clientId.size() <= 80
+        && data.submittedAt is timestamp
+        && data.recordJson is string
+        && data.recordJson.size() > 10
+        && data.recordJson.size() <= 700000;
+    }
+
+    function decisionOk() {
+      let data = request.resource.data;
+      return baseOk()
+        && data.keys().hasOnly([
+          'workspace', 'schemaVersion', 'reviewId', 'status', 'alias',
+          'clientId', 'decidedAt'
+        ])
+        && data.reviewId is string
+        && data.reviewId.size() > 0
+        && data.reviewId.size() <= 180
+        && data.status in ['approved', 'rejected']
+        && data.alias is string
+        && data.alias.size() > 0
+        && data.alias.size() <= 40
+        && data.clientId is string
+        && data.clientId.size() > 0
+        && data.clientId.size() <= 80
+        && data.decidedAt is timestamp;
+    }
+
+    function reportOk(reportId) {
+      let data = request.resource.data;
+      return baseOk()
+        && data.keys().hasOnly([
+          'workspace', 'schemaVersion', 'reportId', 'metaJson', 'createdAt',
+          'createdBy', 'clientId'
+        ])
+        && data.reportId == reportId
+        && data.reportId is string
+        && data.reportId.size() > 0
+        && data.reportId.size() <= 180
+        && data.metaJson is string
+        && data.metaJson.size() > 10
+        && data.metaJson.size() <= 30000
+        && data.createdAt is timestamp
+        && data.createdBy is string
+        && data.createdBy.size() > 0
+        && data.createdBy.size() <= 40
+        && data.clientId is string
+        && data.clientId.size() > 0
+        && data.clientId.size() <= 80;
+    }
+
+    function reportItemOk() {
+      let data = request.resource.data;
+      return baseOk()
+        && data.keys().hasOnly([
+          'workspace', 'schemaVersion', 'reportId', 'kind', 'reviewId',
+          'recordJson'
+        ])
+        && data.reportId is string
+        && data.reportId.size() > 0
+        && data.reportId.size() <= 180
+        && data.kind in ['posts', 'comments', 'updates']
+        && data.reviewId is string
+        && data.reviewId.size() > 0
+        && data.reviewId.size() <= 180
+        && data.recordJson is string
+        && data.recordJson.size() > 10
+        && data.recordJson.size() <= 700000;
+    }
+
+    match /records/{recordId} {
+      allow read: if true;
+      allow create: if recordOk(recordId);
+      allow update, delete: if false;
+    }
+
+    match /decisions/{decisionId} {
+      allow read: if true;
+      allow create: if decisionOk();
+      allow update, delete: if false;
+    }
+
+    match /reports/{reportId} {
+      allow read: if true;
+      allow create: if reportOk(reportId);
+      allow update, delete: if false;
+    }
+
+    match /reportItems/{itemId} {
+      allow read: if true;
+      allow create: if reportItemOk();
+      allow update, delete: if false;
+    }
+  }
+}
