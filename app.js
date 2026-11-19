@@ -9,7 +9,7 @@
   const docsHref=()=>{const language=globalThis.WorkbenchI18n?.getLanguage?.()||'zh-Hans';return 'data/codebook'+(language==='en'?'.en':language==='zh-Hant'?'.zh-Hant':'')+'.md';};
   const localNow=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);};
   const localDay=()=>localNow().slice(0,10);
-  let state=W.empty(B),storageIssue='',selected='working',page='overview',filters={role:'all',age:'all',metric:'likes'},libraryQuery='',libraryPage=1,commentQuery='',theme='all',commentPage=1,reviewTab='pending',entry='post',importAudit=null,importType='posts',toastTimer;
+  let state=W.empty(B),storageIssue='',selected='working',page='overview',filters={role:'all',age:'all',metric:'likes'},libraryQuery='',libraryPage=1,commentQuery='',theme='all',commentPage=1,reviewTab='pending',reviewPageNumber=1,entry='post',importAudit=null,importType='posts',toastTimer;
   try{const saved=localStorage.getItem(KEY);if(saved)state=W.validateState(B,JSON.parse(saved));}catch(err){storageIssue='本地数据未能载入：'+err.message+'。原存储未被覆盖，请先导出原始存储后再恢复有效备份。';}
   function commit(next,message){
     const previous=state;
@@ -27,9 +27,23 @@
     }
   }
   function toast(message,error=false){clearTimeout(toastTimer);$('toast').textContent=message;$('toast').className='toast'+(error?' error':'');$('toast').hidden=false;toastTimer=setTimeout(()=>$('toast').hidden=true,error?9000:5000);}
-  function current(){return W.dataset(B,state,selected);}
-  function working(){return W.dataset(B,state,'working');}
-  function analytics(){return C.computeAnalytics(current(),filters);}
+  const datasetMemo=new WeakMap();
+  let analyticsMemo=null;
+  function datasetFor(selection){
+    let memo=datasetMemo.get(state);
+    if(!memo){memo={};datasetMemo.set(state,memo);}
+    if(!Object.prototype.hasOwnProperty.call(memo,selection))memo[selection]=W.dataset(B,state,selection);
+    return memo[selection];
+  }
+  function current(){return datasetFor(selected);}
+  function working(){return datasetFor('working');}
+  function analytics(){
+    const filterKey=JSON.stringify(filters);
+    if(analyticsMemo&&analyticsMemo.state===state&&analyticsMemo.selection===selected&&analyticsMemo.filterKey===filterKey)return analyticsMemo.result;
+    const result=C.computeAnalytics(current(),filters);
+    analyticsMemo={state,selection:selected,filterKey,result};
+    return result;
+  }
   const meta={overview:['研究概览','从招聘帖里，读出真实的互动','对照岗位、文案与评论，探索当前样本里的招聘信号'],roles:['岗位与互动','不同岗位，获得怎样的关注','在相近的发布至采集时长与采集口径下，比较可见点赞、评论和转发'],signals:['文案特征','信息写了什么，互动有何不同','按六类文本线索分组比较；结果描述共现关系，不预测招聘效果'],comments:['评论关注点','求职者在评论里，关心什么','从已关联的非空评论中提取关键词线索，再回到原文核验'],library:['帖子样本库','每条记录，都有它的来处','查看来源、文本和数据质量，理解哪些记录进入了分析'],review:['审核新增数据','先核验，再纳入研究','核对真实帖子、评论关联和快照变化；通过后更新全组共享工作样本'],versions:['报告与版本','把研究结果，留在明确的版本里','冻结报告口径，继续补充全组工作样本；云端同步，并保留本地备份']};
   const metricNames={likes:'点赞',comments:'评论',reposts:'转发'}, metricKeys={likes:'likesMedian',comments:'commentsMedian',reposts:'repostsMedian'};
   function buttons(){return '<button class="button small" data-open="import">批量导入</button>';}
@@ -51,14 +65,17 @@
     const rows=allReviews().filter(x=>x.item.reviewStatus===(reviewTab==='rejected'?'rejected':'pending'));
     const active=reviewTab!=='rejected';
     const rejected=allReviews().filter(x=>x.item.reviewStatus==='rejected').length;
-    return `<div class="section-toolbar"><div class="toolbar-group"><button class="button ${active?'secondary':''}" data-review-tab="pending">待审核 ${f(W.pending(state))}</button><button class="button ${!active?'secondary':''}" data-review-tab="rejected">已退回 ${f(rejected)}</button></div>${active&&rows.length?'<button class="button" id="approve-batch">通过前 200 项</button>':''}</div>${selected!=='working'?notice('你正在查看冻结版本。审核只更新全组共享工作样本，当前冻结统计保持不变。','warning'):''}${rows.length?rows.slice(0,200).map(({type,item})=>{
+    const pageSize=20,pages=Math.max(1,Math.ceil(rows.length/pageSize));
+    if(reviewPageNumber>pages)reviewPageNumber=pages;
+    const start=(reviewPageNumber-1)*pageSize,visible=rows.slice(start,start+pageSize);
+    return `<div class="section-toolbar"><div class="toolbar-group"><button class="button ${active?'secondary':''}" data-review-tab="pending">待审核 ${f(W.pending(state))}</button><button class="button ${!active?'secondary':''}" data-review-tab="rejected">已退回 ${f(rejected)}</button></div>${active&&rows.length?'<button class="button" id="approve-batch">通过前 50 项</button>':''}</div>${selected!=='working'?notice('你正在查看冻结版本。审核只更新全组共享工作样本，当前冻结统计保持不变。','warning'):''}${rows.length?visible.map(({type,item})=>{
       const p=item.record||item;
       const previous=type==='updates'?working().posts.find(x=>x.id===item.postId):null;
       const alias=item.submitterAlias||p.submitterAlias||'未记录';
       const submittedAt=item.submittedAt||p.submittedAt||'';
       const history=Array.isArray(item.decisionHistory)?item.decisionHistory:[];
       return `<article class="review-card"><div class="review-head"><div><span class="chip ${type==='updates'?'accent':''}">${type==='posts'?'新增真实帖子':type==='comments'?'新增评论':'同帖快照更新'}</span><h3>${type==='comments'?'关联帖子 '+e(p.postId):e(p.jobFamily)+' · '+e(p.id)}</h3></div>${item.cloudSynced?'<span class="chip success">云端同步</span>':''}</div><div class="review-provenance"><span>提交：${e(alias)}</span><span>提交时间：${e(date(submittedAt))}</span></div><p class="review-excerpt" data-preserve-content>${e(p.text)}</p>${history.length?`<details class="decision-log"><summary>审核记录 ${f(history.length)} 项</summary>${history.slice().sort((a,b)=>String(a.decidedAt||'').localeCompare(String(b.decidedAt||''))).map(x=>`<p><span class="chip ${x.status==='approved'?'success':'error'}">${x.status==='approved'?'通过':'退回'}</span> ${e(x.alias||'匿名')} · ${e(date(x.decidedAt))}</p>`).join('')}</details>`:''}${type!=='comments'?`<div class="change-grid">${[['likes','点赞'],['commentsCount','评论'],['reposts','转发']].map(([k,label])=>`<div class="change-item">${label}<strong>${previous?f(previous[k])+' → ':''}${f(p[k])}</strong></div>`).join('')}</div><p class="caption" style="margin-top:12px">发布 ${e(date(p.publishedAt))} · 观察 ${e(date(p.collectedAt))}${p.url?' · <a target="_blank" rel="noopener noreferrer" href="'+e(C.normalizeUrl(p.url))+'">回查原帖</a>':''}</p>`:''}${active?`<div class="review-footer"><span class="caption">${type==='updates'?'通过后替换工作样本中的快照，不增加帖子数':'请确认来源、字段和关联真实准确；此操作会同步给全组'}</span><button class="button danger" data-review="reject" data-type="${type}" data-id="${e(item.reviewId)}">退回</button><button class="button primary" data-review="approve" data-type="${type}" data-id="${e(item.reviewId)}">通过并纳入</button></div>`:''}</article>`;
-    }).join(''): `<section class="panel">${empty(active?'暂时没有待审核数据':'没有已退回记录',active?'添加真实帖子、评论或导入表格后，先在这里核验，再让全组统计更新。':'被退回的记录保留在这里，不参与分析。',active?'<button class="button primary" data-open="post">添加真实帖子</button>':'')}</section>`}`;
+    }).join('')+pagination('review',reviewPageNumber,rows.length,pageSize): `<section class="panel">${empty(active?'暂时没有待审核数据':'没有已退回记录',active?'添加真实帖子、评论或导入表格后，先在这里核验，再让全组统计更新。':'被退回的记录保留在这里，不参与分析。',active?'<button class="button primary" data-open="post">添加真实帖子</button>':'')}</section>`}`;
   }
   function versions(){
     const d=working(),a=C.computeAnalytics(d);
@@ -107,8 +124,8 @@
     if(el.classList.contains('close-dialog')){$('entry-dialog').close();return;}if(el.classList.contains('close-detail')){$('detail-dialog').close();return;}
     if(el.dataset.detail){detail(el.dataset.detail);return;}if(el.dataset.role){filters.role=el.dataset.role;libraryPage=commentPage=1;render();return;}
     if(el.dataset.theme){theme=el.dataset.theme;commentPage=1;renderView();return;}
-    if(el.dataset.pagination){if(el.dataset.pagination==='library')libraryPage+=+el.dataset.step;else commentPage+=+el.dataset.step;renderView();return;}
-    if(el.dataset.reviewTab){reviewTab=el.dataset.reviewTab;renderView();return;}
+    if(el.dataset.pagination){if(el.dataset.pagination==='library')libraryPage+=+el.dataset.step;else if(el.dataset.pagination==='review')reviewPageNumber+=+el.dataset.step;else commentPage+=+el.dataset.step;renderView();return;}
+    if(el.dataset.reviewTab){reviewTab=el.dataset.reviewTab;reviewPageNumber=1;renderView();return;}
     if(el.dataset.review){const next=W.review(B,state,el.dataset.type,el.dataset.id,el.dataset.review==='approve'?'approve':'reject');commit(next,el.dataset.review==='approve'?'审核通过，工作样本已重新计算':'已退回，未纳入研究统计');return;}
     if(el.dataset.version){selected=el.dataset.version;render();return;}
     if(el.dataset.export){exportData(el.dataset.export);return;}
@@ -123,7 +140,7 @@
     if(el.id==='export-backup'){exportBackup();return;}
     if(el.id==='export-raw-storage'){download('COM5507_unloaded_storage.json',localStorage.getItem(KEY)||'null');return;}
     if(el.id==='confirm-restore'&&restoreCandidate){exportBackup();selected='working';storageIssue='';if(commit(restoreCandidate,'备份已恢复，工作样本已重新计算'))restoreCandidate=null;return;}
-    if(el.id==='approve-batch'){let next=state,passed=0,failed=0;const items=allReviews().filter(x=>x.item.reviewStatus==='pending').sort((a,b)=>['posts','updates','comments'].indexOf(a.type)-['posts','updates','comments'].indexOf(b.type)).slice(0,200);for(const x of items){try{next=W.review(B,next,x.type,x.item.reviewId,'approve');passed++;}catch{failed++;}}if(passed)commit(next,`通过 ${passed} 项；${failed} 项仍需人工处理`);else toast('这些记录尚不能纳入，请逐项检查帖子关联或重复冲突',true);return;}
+    if(el.id==='approve-batch'){let next=state,passed=0,failed=0;const items=allReviews().filter(x=>x.item.reviewStatus==='pending').sort((a,b)=>['posts','updates','comments'].indexOf(a.type)-['posts','updates','comments'].indexOf(b.type)).slice(0,50);for(const x of items){try{next=W.review(B,next,x.type,x.item.reviewId,'approve');passed++;}catch{failed++;}}if(passed){reviewPageNumber=1;commit(next,`通过 ${passed} 项；${failed} 项仍需人工处理`);}else toast('这些记录尚不能纳入，请逐项检查帖子关联或重复冲突',true);return;}
   }catch(err){toast(err.message,true);}});
   document.addEventListener('submit',ev=>{const form=ev.target,formId=form.getAttribute('id');ev.preventDefault();try{if(formId==='post-form')submitPost(form);if(formId==='comment-form')submitComment(form);if(formId==='draft-form'){const text=C.redactText(form.elements.text.value);if(text.length<40){formErrors(['草稿至少需要 40 个字符']);return;}const next=clone(state);next.drafts.push({id:W.uid('draft'),text,createdAt:new Date().toISOString()});if(commit(next,'草稿已独立保存，没有加入研究样本'))openEntry('draft');}if(formId==='freeze-form'){const r=W.freeze(B,state,new FormData(form).get('label'));if(commit(r.state,'报告版本已冻结；今后的新增数据不会改变它')){selected=r.snapshot.id;render();}}}catch(err){if($('entry-dialog').open&&$('entry-errors'))formErrors([err.message]);else toast(err.message,true);}});
   document.addEventListener('change',ev=>{const el=ev.target;if(el.id==='dataset-select'){selected=el.value;libraryPage=commentPage=1;render();}if(['role-filter','age-filter'].includes(el.id)){filters[el.id.split('-')[0]]=el.value;libraryPage=commentPage=1;render();}if(el.hasAttribute('data-metric')){filters.metric=el.value;renderView();}if(el.id==='theme-filter'){theme=el.value;commentPage=1;renderView();}if(el.id==='import-type'){importAudit=null;$('import-preview').innerHTML='';$('import-file').value='';}if(el.id==='import-file')importFile(el.files[0]);if(el.id==='restore-file')prepareRestore(el.files[0]);});
