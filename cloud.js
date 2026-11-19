@@ -8,7 +8,9 @@
     projectId:'hiring-post-observatory',
     apiKey:'AIzaSyCbouN0B-AybtVnvlOTkblXCyGve-3_F80',
     workspace:'com5507-main',
-    pollMs:15000
+    pollMs:60000,
+    minRefreshGapMs:30000,
+    pageSize:1000
   };
   const PROFILE_KEY='com5507-cloud-profile-v1';
   const DIRTY_KEY='com5507-cloud-dirty-v1';
@@ -23,12 +25,14 @@
   let currentState=W.empty(B);
   let onState=null;
   let lastCloud=emptyCloud();
+  let lastCloudSignature='';
+  let lastRefreshStartedAt=0;
   let dirty=readDirty();
   let status={mode:'connecting',detail:'正在连接共享数据库',lastSyncAt:null,queued:0};
   let pollTimer=null,flushTimer=null,refreshing=null,scheduled=false;
 
   function emptyCloud(){
-    return {records:new Map(),reports:new Map(),reportItems:new Map()};
+    return {records:new Map(),reports:new Map(),reportItems:new Map(),signature:''};
   }
 
   function readProfile(){
@@ -121,11 +125,9 @@
         if(raw.kind!==kind)return;
         const remote=cloudItem(raw,raw._decisions||[]);
         if(!remote)return;
-        if(dirty.records.has(raw.reviewId)&&merged.has(raw.reviewId)){
-          merged.set(raw.reviewId,{...remote,...merged.get(raw.reviewId),cloudSynced:true});
-        }else{
-          merged.set(raw.reviewId,remote);
-        }
+        // Cloud records and decisions are append-only and authoritative. A stale
+        // local pending copy must not overwrite a decision already on the server.
+        merged.set(raw.reviewId,remote);
       });
       out.additions[kind]=[...merged.values()].sort((a,b)=>{
         const left=String(a.submittedAt||'');
@@ -194,11 +196,25 @@
     let token='';
     do{
       const suffix=(token?'&pageToken='+encodeURIComponent(token):'');
-      const data=await request(ROOT+'/'+collection+'?pageSize=300'+suffix+(QUERY_KEY.startsWith('?')?'&'+QUERY_KEY.slice(1):''));
+      const data=await request(ROOT+'/'+collection+'?pageSize='+CONFIG.pageSize+suffix+(QUERY_KEY.startsWith('?')?'&'+QUERY_KEY.slice(1):''));
       (data.documents||[]).forEach(doc=>docs.push(doc));
       token=data.nextPageToken||'';
     }while(token);
     return docs;
+  }
+
+  function docsSignature(groups){
+    let hash=2166136261;
+    groups.forEach(docs=>{
+      docs.forEach(doc=>{
+        const token=String(doc.name||'')+'|'+String(doc.updateTime||'')+'|';
+        for(let i=0;i<token.length;i+=1){
+          hash^=token.charCodeAt(i);
+          hash=Math.imul(hash,16777619);
+        }
+      });
+    });
+    return (hash>>>0).toString(36)+':'+groups.map(docs=>docs.length).join('.');
   }
 
   function docId(doc){
@@ -234,6 +250,7 @@
       listAll('records'),listAll('decisions'),listAll('reports'),listAll('reportItems')
     ]);
     const cloud=emptyCloud();
+    cloud.signature=docsSignature([recordDocs,decisionDocs,reportDocs,itemDocs]);
     const decisions=new Map();
     decisionDocs.forEach(doc=>{
       const reviewId=stringField(doc,'reviewId');
@@ -412,14 +429,19 @@
 
   async function refresh(force){
     if(refreshing)return refreshing;
+    if(!force&&lastRefreshStartedAt&&Date.now()-lastRefreshStartedAt<CONFIG.minRefreshGapMs)return;
+    lastRefreshStartedAt=Date.now();
     refreshing=(async()=>{
       setStatus('syncing','正在读取全组数据');
       const cloud=await fetchCloud();
       lastCloud=cloud;
-      const merged=mergeState(currentState,cloud);
-      currentState=merged;
+      const cloudChanged=cloud.signature!==lastCloudSignature;
+      if(cloudChanged){
+        lastCloudSignature=cloud.signature;
+        currentState=mergeState(currentState,cloud);
+        if(onState)onState(clone(currentState),{initial:false});
+      }
       setStatus('online','全组数据已同步');
-      if(onState)onState(clone(merged),{initial:false});
       const hasLocalOnly=KINDS.some(kind=>(currentState.additions[kind]||[]).some(item=>item&&item.reviewId&&!cloud.records.has(item.reviewId)))||(currentState.snapshots||[]).some(item=>item&&item.id&&!cloud.reports.has(item.id));
       if(force||hasLocalOnly||dirty.records.size||dirty.reports.size)flushLoop();
     })().catch(error=>{
@@ -531,10 +553,11 @@
     const detail=document.getElementById('cloud-status-detail');
     const dot=document.getElementById('cloud-status-dot');
     const button=document.getElementById('cloud-sync-now');
+    const translate=root.WorkbenchI18n?.t||(s=>String(s));
     if(dot)dot.className='status-dot cloud-'+value.mode;
-    if(text)text.textContent=value.mode==='online'?'全组云端数据已同步':value.mode==='syncing'?'正在同步全组数据':'云端暂不可用';
+    if(text)text.textContent=translate(value.mode==='online'?'全组云端数据已同步':value.mode==='syncing'?'正在同步全组数据':'云端暂不可用');
     const queued=value.queued?` · ${value.queued} 项待上传`:'';
-    if(detail)detail.textContent=(value.detail||'')+queued+(value.lastSyncAt?' · '+new Date(value.lastSyncAt).toLocaleTimeString(root.WorkbenchI18n?.locale?.()||'zh-CN',{hour12:false}):'');
+    if(detail)detail.textContent=translate(value.detail||'')+translate(queued)+(value.lastSyncAt?' · '+new Date(value.lastSyncAt).toLocaleTimeString(root.WorkbenchI18n?.locale?.()||'zh-CN',{hour12:false}):'');
     if(button){button.disabled=value.mode==='syncing';}
   }
 
