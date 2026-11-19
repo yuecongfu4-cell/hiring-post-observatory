@@ -8,12 +8,14 @@
     projectId:'hiring-post-observatory',
     apiKey:'AIzaSyCbouN0B-AybtVnvlOTkblXCyGve-3_F80',
     workspace:'com5507-main',
-    pollMs:60000,
-    minRefreshGapMs:30000,
-    pageSize:1000
+    pollMs:300000,
+    minRefreshGapMs:300000,
+    pageSize:1000,
+    quotaBackoffMs:15*60*1000
   };
   const PROFILE_KEY='com5507-cloud-profile-v1';
   const DIRTY_KEY='com5507-cloud-dirty-v1';
+  const SYNC_STAMP_KEY='com5507-cloud-last-sync-v1';
   const QUERY_KEY='?key='+encodeURIComponent(CONFIG.apiKey);
   const ROOT='https://firestore.googleapis.com/v1/projects/'+CONFIG.projectId+'/databases/(default)/documents';
   const KINDS=['posts','comments','updates'];
@@ -27,6 +29,8 @@
   let lastCloud=emptyCloud();
   let lastCloudSignature='';
   let lastRefreshStartedAt=0;
+  let lastSuccessfulRefreshAt=Number(localStorage.getItem(SYNC_STAMP_KEY)||0);
+  let nextRefreshNotBefore=0;
   let dirty=readDirty();
   let status={mode:'connecting',detail:'正在连接共享数据库',lastSyncAt:null,queued:0};
   let pollTimer=null,flushTimer=null,refreshing=null,scheduled=false;
@@ -185,6 +189,10 @@
       }catch(_){}
       const error=new Error(message);
       error.status=response.status;
+      if(response.status===429){
+        const retryAfter=Number(response.headers.get('retry-after'));
+        error.retryAfterMs=Number.isFinite(retryAfter)&&retryAfter>0?retryAfter*1000:CONFIG.quotaBackoffMs;
+      }
       throw error;
     }
     const text=await response.text();
@@ -246,9 +254,10 @@
   }
 
   async function fetchCloud(){
-    const [recordDocs,decisionDocs,reportDocs,itemDocs]=await Promise.all([
-      listAll('records'),listAll('decisions'),listAll('reports'),listAll('reportItems')
-    ]);
+    const recordDocs=await listAll('records');
+    const decisionDocs=await listAll('decisions');
+    const reportDocs=await listAll('reports');
+    const itemDocs=await listAll('reportItems');
     const cloud=emptyCloud();
     cloud.signature=docsSignature([recordDocs,decisionDocs,reportDocs,itemDocs]);
     const decisions=new Map();
@@ -422,13 +431,18 @@
         if(changed)await refresh(true);
         else setStatus('online','共享数据库已连接');
       }catch(error){
-        setStatus('offline','云端暂不可用，改动已保存在本机',error.message);
+        if(error.status===429)nextRefreshNotBefore=Date.now()+(error.retryAfterMs||CONFIG.quotaBackoffMs);
+        setStatus('offline',error.status===429?'云端读取配额暂时用尽；继续使用本机缓存':'云端暂不可用，改动已保存在本机',error.message);
       }
     },20);
   }
 
   async function refresh(force){
     if(refreshing)return refreshing;
+    if(!force&&nextRefreshNotBefore&&Date.now()<nextRefreshNotBefore){
+      setStatus('online','正在使用本机缓存；云端请求稍后重试');
+      return;
+    }
     if(!force&&lastRefreshStartedAt&&Date.now()-lastRefreshStartedAt<CONFIG.minRefreshGapMs)return;
     lastRefreshStartedAt=Date.now();
     refreshing=(async()=>{
@@ -441,11 +455,15 @@
         currentState=mergeState(currentState,cloud);
         if(onState)onState(clone(currentState),{initial:false});
       }
+      lastSuccessfulRefreshAt=Date.now();
+      nextRefreshNotBefore=0;
+      try{localStorage.setItem(SYNC_STAMP_KEY,String(lastSuccessfulRefreshAt));}catch(_){}
       setStatus('online','全组数据已同步');
       const hasLocalOnly=KINDS.some(kind=>(currentState.additions[kind]||[]).some(item=>item&&item.reviewId&&!cloud.records.has(item.reviewId)))||(currentState.snapshots||[]).some(item=>item&&item.id&&!cloud.reports.has(item.id));
       if(force||hasLocalOnly||dirty.records.size||dirty.reports.size)flushLoop();
     })().catch(error=>{
-      setStatus('offline','云端暂不可用，改动已保存在本机',error.message);
+      if(error.status===429)nextRefreshNotBefore=Date.now()+(error.retryAfterMs||CONFIG.quotaBackoffMs);
+      setStatus('offline',error.status===429?'云端读取配额暂时用尽；继续使用本机缓存':'云端暂不可用，改动已保存在本机',error.message);
       if(onState)onState(clone(currentState),{initial:false,error:error.message});
     }).finally(()=>{refreshing=null;});
     return refreshing;
@@ -475,7 +493,14 @@
     onState=listener;
     updateProfileButton();
     emitStatus();
-    await refresh(false);
+    const hasCachedData=KINDS.some(kind=>(currentState.additions[kind]||[]).length)||(currentState.snapshots||[]).length;
+    if(hasCachedData){
+      lastRefreshStartedAt=Date.now();
+      status={...status,mode:'online',detail:'已载入本机缓存；点击“立即同步”获取全组更新',error:'',lastSyncAt:lastSuccessfulRefreshAt||status.lastSyncAt};
+      emitStatus();
+    }else{
+      await refresh(false);
+    }
     if(!pollTimer){
       pollTimer=setInterval(()=>{if(document.visibilityState==='visible')refresh(false);},CONFIG.pollMs);
     }
