@@ -39,7 +39,7 @@
     const out=empty(b);const states=['pending','approved','rejected'];
     function validateAdditions(raw){
       if(!raw||!['posts','comments','updates'].every(k=>Array.isArray(raw[k])))throw Error('备份缺少帖子、评论或快照更新数组');
-      if(['posts','comments','updates'].some(k=>raw[k].length>20000))throw Error('备份单类记录超过 20,000 条');
+      if(['posts','comments','updates'].some(k=>raw[k].length>100000))throw Error('备份单类记录超过 100,000 条');
       const dest={posts:[],comments:[],updates:[]},reviews=new Set(),ids=new Set(b.posts.map(p=>p.id));
       const metaKeys=['submitterAlias','submittedAt','clientId','decisionHistory','reviewDecisionAt','reviewDecisionBy','cloudSynced','duplicateOf','conflict'];
       function statusAndId(x){if(!x||typeof x!=='object'||!states.includes(x.reviewStatus)||typeof x.reviewId!=='string'||!x.reviewId||reviews.has(x.reviewId))throw Error('备份审核状态或审核编号无效');reviews.add(x.reviewId);}

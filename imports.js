@@ -2,10 +2,10 @@
 (function (root) {
   'use strict';
 
-  const MAX_FILE_BYTES = 20 * 1024 * 1024;
-  const MAX_UNPACKED_BYTES = 64 * 1024 * 1024;
-  const MAX_ROWS = 20000;
-  const MAX_CELLS = 1000000;
+  const MAX_FILE_BYTES = 100 * 1024 * 1024;
+  const MAX_UNPACKED_BYTES = 256 * 1024 * 1024;
+  const MAX_ROWS = 100000;
+  const MAX_CELLS = 3000000;
   const MAX_COLUMNS = 16384;
   const MAX_ZIP_ENTRIES = 2000;
   const forbiddenHeaders = new Set(['__proto__', 'prototype', 'constructor']);
@@ -182,7 +182,7 @@
         }
         continue;
       }
-      if (records.length >= MAX_ROWS) fail('每次最多导入 20,000 行数据，请拆分文件。');
+      if (records.length >= MAX_ROWS) fail('每次最多导入 100,000 行数据，请拆分文件。');
       if (values.some((value, index) => index >= headers.length && String(value || '').trim() !== '')) {
         fail('工作表第 ' + (rowIndex + 1) + ' 行的数据超出表头列数。');
       }
@@ -230,7 +230,7 @@
   async function readFile(file) {
     if (!file || typeof file.name !== 'string' || typeof file.size !== 'number') fail('请先选择 CSV 或 XLSX 文件。');
     if (!file.size) fail('所选文件为空。');
-    if (file.size > MAX_FILE_BYTES) fail('文件超过 20 MB，请拆分后再导入。');
+    if (file.size > MAX_FILE_BYTES) fail('文件超过 100 MB，请拆分后再导入。');
     const extension = file.name.split('.').pop().toLowerCase();
     if (extension === 'xlsx') return readXLSX(file);
     if (extension !== 'csv') fail('仅支持 .csv 和 .xlsx 文件，旧版 .xls 请先另存为 .xlsx。');
@@ -240,7 +240,7 @@
       fail('CSV 读取结果无效，请检查首行表头和分隔符。');
     }
     if (!records.length) fail('CSV 没有数据行，请在首行填写表头。');
-    if (records.length > MAX_ROWS) fail('每次最多导入 20,000 行数据，请拆分文件。');
+    if (records.length > MAX_ROWS) fail('每次最多导入 100,000 行数据，请拆分文件。');
     return records;
   }
 

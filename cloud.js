@@ -8,16 +8,19 @@
     projectId:'hiring-post-observatory',
     apiKey:'AIzaSyCbouN0B-AybtVnvlOTkblXCyGve-3_F80',
     workspace:'com5507-main',
-    pollMs:60000,
-    minRefreshGapMs:30000,
-    pageSize:1000
+    pollMs:300000,
+    minRefreshGapMs:300000,
+    pageSize:1000,
+    quotaBackoffMs:15*60*1000
   };
   const PROFILE_KEY='com5507-cloud-profile-v1';
   const DIRTY_KEY='com5507-cloud-dirty-v1';
+  const SYNC_STAMP_KEY='com5507-cloud-last-sync-v1';
+  const COOLDOWN_KEY='com5507-cloud-cooldown-v1';
   const QUERY_KEY='?key='+encodeURIComponent(CONFIG.apiKey);
   const ROOT='https://firestore.googleapis.com/v1/projects/'+CONFIG.projectId+'/databases/(default)/documents';
   const KINDS=['posts','comments','updates'];
-  const clone=x=>JSON.parse(JSON.stringify(x));
+  const clone=x=>typeof structuredClone==='function'?structuredClone(x):JSON.parse(JSON.stringify(x));
   const now=()=>new Date().toISOString();
   const safeId=v=>String(v||'').replace(/[^A-Za-z0-9_-]/g,'_').slice(0,1400);
   const random=i=>Math.random().toString(36).slice(2,2+i);
@@ -27,6 +30,8 @@
   let lastCloud=emptyCloud();
   let lastCloudSignature='';
   let lastRefreshStartedAt=0;
+  let lastSuccessfulRefreshAt=Number(localStorage.getItem(SYNC_STAMP_KEY)||0);
+  let nextRefreshNotBefore=Number(localStorage.getItem(COOLDOWN_KEY)||0);
   let dirty=readDirty();
   let status={mode:'connecting',detail:'正在连接共享数据库',lastSyncAt:null,queued:0};
   let pollTimer=null,flushTimer=null,refreshing=null,scheduled=false;
@@ -185,6 +190,10 @@
       }catch(_){}
       const error=new Error(message);
       error.status=response.status;
+      if(response.status===429){
+        const retryAfter=Number(response.headers.get('retry-after'));
+        error.retryAfterMs=Number.isFinite(retryAfter)&&retryAfter>0?retryAfter*1000:CONFIG.quotaBackoffMs;
+      }
       throw error;
     }
     const text=await response.text();
@@ -246,9 +255,10 @@
   }
 
   async function fetchCloud(){
-    const [recordDocs,decisionDocs,reportDocs,itemDocs]=await Promise.all([
-      listAll('records'),listAll('decisions'),listAll('reports'),listAll('reportItems')
-    ]);
+    const recordDocs=await listAll('records');
+    const decisionDocs=await listAll('decisions');
+    const reportDocs=await listAll('reports');
+    const itemDocs=await listAll('reportItems');
     const cloud=emptyCloud();
     cloud.signature=docsSignature([recordDocs,decisionDocs,reportDocs,itemDocs]);
     const decisions=new Map();
@@ -277,6 +287,8 @@
         reviewId,
         kind,
         recordJson,
+        baselineVersion:stringField(doc,'baselineVersion'),
+        baselineHash:stringField(doc,'baselineHash'),
         submitterAlias:stringField(doc,'submitterAlias'),
         clientId:stringField(doc,'clientId'),
         submittedAt:timestampField(doc,'submittedAt'),
@@ -422,13 +434,18 @@
         if(changed)await refresh(true);
         else setStatus('online','共享数据库已连接');
       }catch(error){
-        setStatus('offline','云端暂不可用，改动已保存在本机',error.message);
+        if(error.status===429){nextRefreshNotBefore=Date.now()+(error.retryAfterMs||CONFIG.quotaBackoffMs);try{localStorage.setItem(COOLDOWN_KEY,String(nextRefreshNotBefore));}catch(_){}}
+        setStatus('offline',error.status===429?'云端读取配额暂时用尽；继续使用本机缓存':'云端暂不可用，改动已保存在本机',error.message);
       }
     },20);
   }
 
   async function refresh(force){
     if(refreshing)return refreshing;
+    if(!force&&nextRefreshNotBefore&&Date.now()<nextRefreshNotBefore){
+      setStatus('cached','正在使用本机数据库；云端请求配额恢复后自动重试');
+      return;
+    }
     if(!force&&lastRefreshStartedAt&&Date.now()-lastRefreshStartedAt<CONFIG.minRefreshGapMs)return;
     lastRefreshStartedAt=Date.now();
     refreshing=(async()=>{
@@ -441,11 +458,15 @@
         currentState=mergeState(currentState,cloud);
         if(onState)onState(clone(currentState),{initial:false});
       }
+      lastSuccessfulRefreshAt=Date.now();
+      nextRefreshNotBefore=0;
+      try{localStorage.setItem(SYNC_STAMP_KEY,String(lastSuccessfulRefreshAt));localStorage.removeItem(COOLDOWN_KEY);}catch(_){}
       setStatus('online','全组数据已同步');
       const hasLocalOnly=KINDS.some(kind=>(currentState.additions[kind]||[]).some(item=>item&&item.reviewId&&!cloud.records.has(item.reviewId)))||(currentState.snapshots||[]).some(item=>item&&item.id&&!cloud.reports.has(item.id));
       if(force||hasLocalOnly||dirty.records.size||dirty.reports.size)flushLoop();
     })().catch(error=>{
-      setStatus('offline','云端暂不可用，改动已保存在本机',error.message);
+      if(error.status===429){nextRefreshNotBefore=Date.now()+(error.retryAfterMs||CONFIG.quotaBackoffMs);try{localStorage.setItem(COOLDOWN_KEY,String(nextRefreshNotBefore));}catch(_){}}
+      setStatus('offline',error.status===429?'云端读取配额暂时用尽；继续使用本机缓存':'云端暂不可用，改动已保存在本机',error.message);
       if(onState)onState(clone(currentState),{initial:false,error:error.message});
     }).finally(()=>{refreshing=null;});
     return refreshing;
@@ -475,7 +496,14 @@
     onState=listener;
     updateProfileButton();
     emitStatus();
-    await refresh(false);
+    const hasCachedData=KINDS.some(kind=>(currentState.additions[kind]||[]).length)||(currentState.snapshots||[]).length;
+    if(hasCachedData){
+      status={...status,mode:'cached',detail:'本机数据库已载入；正在后台核对全组更新',error:'',lastSyncAt:lastSuccessfulRefreshAt||status.lastSyncAt};
+      emitStatus();
+      setTimeout(()=>refresh(false),250);
+    }else{
+      await refresh(false);
+    }
     if(!pollTimer){
       pollTimer=setInterval(()=>{if(document.visibilityState==='visible')refresh(false);},CONFIG.pollMs);
     }
@@ -555,7 +583,7 @@
     const button=document.getElementById('cloud-sync-now');
     const translate=root.WorkbenchI18n?.t||(s=>String(s));
     if(dot)dot.className='status-dot cloud-'+value.mode;
-    if(text)text.textContent=translate(value.mode==='online'?'全组云端数据已同步':value.mode==='syncing'?'正在同步全组数据':'云端暂不可用');
+    if(text)text.textContent=translate(value.mode==='online'?'全组云端数据已同步':value.mode==='syncing'?'正在同步全组数据':value.mode==='cached'?'使用本机数据库':'云端暂不可用');
     const queued=value.queued?` · ${value.queued} 项待上传`:'';
     if(detail)detail.textContent=translate(value.detail||'')+translate(queued)+(value.lastSyncAt?' · '+new Date(value.lastSyncAt).toLocaleTimeString(root.WorkbenchI18n?.locale?.()||'zh-CN',{hour12:false}):'');
     if(button){button.disabled=value.mode==='syncing';}
