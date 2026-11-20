@@ -1,15 +1,15 @@
 # Frozen sample and field definitions
 
-Version: `baseline-20261120-public-1`. Snapshot date: 2026-11-20. The working baseline combines the original frozen tables with education, manufacturing, construction, real estate, two hospitality extensions, an operations/administration collection, a partial healthcare collection, a finance/insurance batch and a public-sector/non-profit batch. The original CSV collection dates and each record's `collectedAt` value remain separate. Every downloadable template contains column headers only, with no simulated research records.
+Version: `baseline-20261120-retail-1`. Snapshot date: 2026-11-20. The working baseline combines the original frozen tables with education, manufacturing, construction, real estate, two hospitality extensions, an operations/administration collection, a partial healthcare collection, a finance/insurance batch, a public-sector/non-profit batch and a retail/e-commerce plus logistics/transportation batch. The original CSV collection dates and each record's `collectedAt` value remain separate. Every downloadable template contains column headers only, with no simulated research records.
 
 ## Verifiable counts
 
 | Item | Records |
 | --- | ---: |
-| Source posts | 3,160 |
-| Unique posts | 3,153 |
+| Source posts | 4,146 |
+| Unique posts | 4,139 |
 | Marked as duplicate and excluded from analysis | 7 |
-| Current interaction-analysis sample | 2,048 |
+| Current interaction-analysis sample | 3,034 |
 | Source comments | 1,277 |
 | Healthcare posts | 195 |
 | Healthcare interaction-analysis posts | 81 |
@@ -19,17 +19,21 @@ Version: `baseline-20261120-public-1`. Snapshot date: 2026-11-20. The working ba
 | Public-sector/non-profit posts | 67 |
 | Public-sector/non-profit interaction-analysis posts | 22 |
 | Public-sector/non-profit linked comments | 49 |
+| Retail and e-commerce posts | 303 |
+| Retail and e-commerce interaction-analysis posts | 303 |
+| Logistics and transportation posts | 695 |
+| Logistics and transportation interaction-analysis posts | 695 |
 | Comments with empty text, retained | 5 |
 | Comments not linked to a source post, retained | 12 |
-| All posts missing a usable URL | 1,123 |
-| Unique posts missing a usable URL | 1,121 |
+| All posts missing a usable URL | 1,576 |
+| Unique posts missing a usable URL | 1,574 |
 | All posts missing likes | 956 |
 | All posts missing comment counts | 1,086 |
 | All posts missing reposts | 1,268 |
-| Posts with a usable observation interval | 3,142 |
+| Posts with a usable observation interval | 4,128 |
 | Records missing the observation interval | 18 |
 
-Another 49 quarantined records came from the original project's quarantine notes. They are not in the master CSVs and are outside the denominators above. Missing numbers are represented as JSON `null`; genuine zeros remain `0`. The working snapshot contains 3,160 posts and 1,277 comments. The public-sector source contained 95 raw rows and 68 text-unique rows. Of these, 67 had confirmed LinkedIn post IDs from which a past-month publication time could be derived; 66 were added and one was a text duplicate. Another 49 linked comments were added. One record without a source ID and verifiable publication time was excluded. For LI00030, the source `post_time` is one day later than `collected_at`; both `publishedAt` and `ageDays` are left blank, and `ageSource` is `missing`. Conflicting source dates are not replaced with guesses.
+Another 49 quarantined records came from the original project's quarantine notes. They are not in the master CSVs and are outside the denominators above. Missing numbers are represented as JSON `null`; genuine zeros remain `0`. The working snapshot contains 4,146 posts and 1,277 comments. The retail/logistics file contained 1,000 rows; 986 passed validation and were added, including 297 retail/e-commerce posts and 689 logistics/transportation posts. Six records without a verifiable publication date and eight duplicate rows were excluded. The file had no comment-body field, so only posts and visible comment counts were imported. For LI00030, the source `post_time` is one day later than `collected_at`; both `publishedAt` and `ageDays` are left blank, and `ageSource` is `missing`. Conflicting source dates are not replaced with guesses.
 
 ## `posts` fields
 
@@ -77,6 +81,6 @@ The six text signals in this version are recalculated in the browser from the co
 
 `baseline.json` and `baseline.js` contain the same object; the latter assigns it to `globalThis.APP_BASELINE`, allowing local browser use. `meta.fields` lists the actual fields. `meta.sourceFiles` stores SHA-256 hashes for every imported source CSV. `meta.dataHash` stores a SHA-256 value for the sorted key and compact UTF-8 JSON representation of the deidentified posts/comments, excluding `meta` to avoid a circular hash. `meta.hashes` also exposes the three hashes under stable `postsSource`, `commentsSource` and `records` keys. The scripts contain no values that change by runtime, so the same inputs and rules produce the same snapshot.
 
-Data-record hash: `23b4bc06501fbcb433a39df0862fce666ff57dc19cbe86aada1689989b4c8573`.
+Data-record hash: `59667fd44677f73350e040240f4be002f039b3082a6112fd0576beda0ac59c84`.
 
 The blank import templates use exactly the field names above. New records need a separate provenance value and a unique ID; unknown numbers remain blank and must not be replaced with `0`; relative dates must not be presented as exact publication dates. Exclusion flags and source counts in the original frozen sample should be retained.
