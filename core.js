@@ -193,7 +193,8 @@
     TRANSPORT: ROLES[13],
     IND_PUB_NONPROFIT: ROLES[14],
     PUBLIC: ROLES[14],
-    NONPROFIT: ROLES[14]
+    NONPROFIT: ROLES[14],
+    B5: ROLES[14]
   };
   var INDUSTRY_MARKERS = [
     { role: ROLES[9], pattern: /\b(?:finance|financial|banking|insurance|insurer|underwriter|actuary)\b|金融|保险|保險|银行|銀行|投资|投資|理财|理財/g },

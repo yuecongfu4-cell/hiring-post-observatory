@@ -15,6 +15,9 @@ service cloud.firestore {
       ) || (
         data.baselineVersion == 'baseline-20261120-fin-1'
         && data.baselineHash == '5fa05d8dd355fc4b354b54190078aceba90f9354df5834faeb519680bcb94f82'
+      ) || (
+        data.baselineVersion == 'baseline-20261120-public-1'
+        && data.baselineHash == '23b4bc06501fbcb433a39df0862fce666ff57dc19cbe86aada1689989b4c8573'
       );
     }
 
