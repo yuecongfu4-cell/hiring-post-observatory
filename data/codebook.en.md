@@ -1,39 +1,44 @@
 # Frozen sample and field definitions
 
-Version: `baseline-20261118`. Snapshot date: 2026-11-18. The original CSV collection dates and each record's `collectedAt` value remain separate. Every downloadable template contains column headers only, with no simulated research records.
+Version: `baseline-20261120-fin-1`. Snapshot date: 2026-11-20. The working baseline combines the original frozen tables with education, manufacturing, construction, real estate, two hospitality extensions, an operations/administration collection, a partial healthcare collection and a finance/insurance batch. The original CSV collection dates and each record's `collectedAt` value remain separate. Every downloadable template contains column headers only, with no simulated research records.
 
 ## Verifiable counts
 
 | Item | Records |
 | --- | ---: |
-| Source posts | 1,443 |
-| Unique posts | 1,436 |
+| Source posts | 3,094 |
+| Unique posts | 3,087 |
 | Marked as duplicate and excluded from analysis | 7 |
-| Analysis sample under the original rules | 1,318 |
-| Source comments | 1,184 |
+| Current interaction-analysis sample | 2,027 |
+| Source comments | 1,228 |
+| Healthcare posts | 195 |
+| Healthcare interaction-analysis posts | 81 |
+| Finance and insurance posts | 107 |
+| Finance and insurance interaction-analysis posts | 103 |
+| Finance and insurance linked comments | 65 |
 | Comments with empty text, retained | 5 |
 | Comments not linked to a source post, retained | 12 |
-| All posts missing a usable URL | 654 |
-| Of which the source link was blank | 642 |
-| Of which the short-link destination was unverified and not opened | 12 |
-| Unique posts missing a usable URL | 652 |
-| Records with an exact date from which an interval can be calculated | 1,070 |
-| Records with an approximate interval derived from a relative label | 355 |
+| All posts missing a usable URL | 1,123 |
+| Unique posts missing a usable URL | 1,121 |
+| All posts missing likes | 946 |
+| All posts missing comment counts | 1,041 |
+| All posts missing reposts | 1,241 |
+| Posts with a usable observation interval | 3,076 |
 | Records missing the observation interval | 18 |
 
-Another 49 quarantined records came from the original project's quarantine notes. They are not in either master CSV and are outside the denominators above. Missing numbers are represented as JSON `null`; genuine zeros remain `0`. All 1,443 posts and 1,184 comments remain in this snapshot. For LI00030, the source `post_time` is one day later than `collected_at`; both `publishedAt` and `ageDays` are left blank, and `ageSource` is `missing`. Conflicting source dates are not replaced with guesses.
+Another 49 quarantined records came from the original project's quarantine notes. They are not in the master CSVs and are outside the denominators above. Missing numbers are represented as JSON `null`; genuine zeros remain `0`. The working snapshot contains 3,094 posts and 1,228 comments. The partial healthcare collection exported 89 raw records; 80 passed the quality rules, 79 were added and one was a duplicate. Collection stopped at a LinkedIn login or verification requirement before reaching the 500-record target. The finance/insurance batch examined 160 candidates; all 85 validated posts were added under Finance and insurance, together with 44 linked comments. For LI00030, the source `post_time` is one day later than `collected_at`; both `publishedAt` and `ageDays` are left blank, and `ageSource` is `missing`. Conflicting source dates are not replaced with guesses.
 
 ## `posts` fields
 
 | Field | Type | Definition |
 | --- | --- | --- |
 | `id` / `sourceId` | string | Original `post_id`; the two fields are identical in the frozen sample. This is not an author identity. |
-| `url` | string / null | Source LinkedIn post URL. Only HTTPS LinkedIn post paths are accepted, with query parameters removed. 642 source links are blank; another 12 `lnkd.in` destinations were not verified and are left blank rather than invented. |
+| `url` | string / null | Source LinkedIn post URL. Only HTTPS LinkedIn post paths are accepted, with query parameters removed. A total of 1,123 records currently lack a usable link; no URL is invented. |
 | `text` | string | Deidentified version of the complete source `post_text`, with whitespace normalized and no truncation. No author fields are exposed. |
-| `jobFamily` | string | One of nine role groups from the original `build_website_data.py` mapping. Specific search lanes take priority; other records use the earliest regex match across `job_title` and `post_text`. |
+| `jobFamily` | string | One of 16 research categories. Recognised industry codes and industry keywords take priority; remaining records use job-function terms and post-text rules. |
 | `publishedAt` | ISO date / null | Parseable date from CSV `post_time`. Relative time labels are not emitted as exact dates. |
 | `collectedAt` | ISO date or datetime / null | CSV `collected_at`, preserving the source's date or time precision and time zone. |
-| `ageDays` | number / null | Time from publication to capture, in days. Exact source dates use calendar-day differences; relative minute, hour, day and week labels are converted to days. This is not the time from publication to today. |
+| `ageDays` | number / null | Time from publication to capture, in days. Exact source dates use calendar-day differences; approximate publication dates exported from relative labels are also used to calculate collection-time age. This is not the time from publication to today. |
 | `likes` / `commentsCount` / `reposts` | number / null | CSV `likes_count`, `comments_count` and `shares_count`: visible engagement counts. |
 | `keyword` | string / null | Search keyword. |
 | `isDuplicate` | boolean | CSV `is_duplicate_master`. The record remains stored; `true` records are excluded from analysis. |
@@ -42,7 +47,7 @@ Another 49 quarantined records came from the original project's quarantine notes
 | `reviewStatus` | string | Fixed value `approved`, meaning included in the frozen export. It does not mean every text was manually verified. |
 | `ageSource` | string | `exact`: absolute CSV date; `relative`: approximate label; `missing`: interval cannot be calculated. |
 
-The nine `jobFamily` groups are Engineering and technology, Product and project management, Design, Marketing and sales, Recruiting and HR, Healthcare, Hospitality, Operations and administration, and Other or unclassified. These are text-derived categories, not certified occupational labels.
+The 16 `jobFamily` groups are Engineering and technology, Product and project management, Design, Marketing and sales, Recruiting and HR, Healthcare, Hospitality, Operations and administration, Other or unclassified, Finance and insurance, Education and training, Manufacturing and industrial production, Retail and e-commerce, Logistics and transportation, Public sector and non-profit, and Architecture, real estate and construction. Industry codes take priority over job-function wording. These are derived research categories, not certified occupational labels.
 
 ## `comments` fields
 
@@ -67,8 +72,8 @@ The six text signals in this version are recalculated in the browser from the co
 
 ## File consistency and reproduction
 
-`baseline.json` and `baseline.js` contain the same object; the latter assigns it to `globalThis.APP_BASELINE`, allowing local browser use. `meta.fields` lists the actual fields. `meta.sourceFiles` stores SHA-256 hashes for the two source CSV files. `meta.dataHash` stores a SHA-256 value for the sorted key and compact UTF-8 JSON representation of the deidentified posts/comments, excluding `meta` to avoid a circular hash. `meta.hashes` also exposes the three hashes under stable `postsSource`, `commentsSource` and `records` keys. The scripts contain no values that change by runtime, so the same inputs and rules produce the same snapshot.
+`baseline.json` and `baseline.js` contain the same object; the latter assigns it to `globalThis.APP_BASELINE`, allowing local browser use. `meta.fields` lists the actual fields. `meta.sourceFiles` stores SHA-256 hashes for every imported source CSV. `meta.dataHash` stores a SHA-256 value for the sorted key and compact UTF-8 JSON representation of the deidentified posts/comments, excluding `meta` to avoid a circular hash. `meta.hashes` also exposes the three hashes under stable `postsSource`, `commentsSource` and `records` keys. The scripts contain no values that change by runtime, so the same inputs and rules produce the same snapshot.
 
-Data-record hash: `a21d4cfacd65754daa6fbcc72510d5ddc01246f6454358b03b3686d583f65afd`.
+Data-record hash: `5fa05d8dd355fc4b354b54190078aceba90f9354df5834faeb519680bcb94f82`.
 
 The blank import templates use exactly the field names above. New records need a separate provenance value and a unique ID; unknown numbers remain blank and must not be replaced with `0`; relative dates must not be presented as exact publication dates. Exclusion flags and source counts in the original frozen sample should be retained.
