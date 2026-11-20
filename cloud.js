@@ -8,8 +8,9 @@
     projectId:'hiring-post-observatory',
     apiKey:'AIzaSyCbouN0B-AybtVnvlOTkblXCyGve-3_F80',
     workspace:'com5507-main',
-    pollMs:300000,
-    minRefreshGapMs:300000,
+    pollMs:6*60*60*1000,
+    minRefreshGapMs:6*60*60*1000,
+    cachedFreshMs:6*60*60*1000,
     pageSize:1000,
     quotaBackoffMs:15*60*1000
   };
@@ -444,6 +445,10 @@
     if(refreshing)return refreshing;
     if(!force&&nextRefreshNotBefore&&Date.now()<nextRefreshNotBefore){
       setStatus('cached','正在使用本机数据库；云端请求配额恢复后自动重试');
+      return;
+    }
+    if(!force&&lastSuccessfulRefreshAt&&Date.now()-lastSuccessfulRefreshAt<CONFIG.cachedFreshMs){
+      setStatus('cached','本机数据仍在 6 小时有效期内；可点击“立即同步”强制检查');
       return;
     }
     if(!force&&lastRefreshStartedAt&&Date.now()-lastRefreshStartedAt<CONFIG.minRefreshGapMs)return;
