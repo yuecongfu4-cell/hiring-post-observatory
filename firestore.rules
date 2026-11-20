@@ -7,6 +7,17 @@ service cloud.firestore {
         && request.resource.data.schemaVersion == '1';
     }
 
+    function supportedRecordBaseline() {
+      let data = request.resource.data;
+      return (
+        data.baselineVersion == 'baseline-20261118'
+        && data.baselineHash == 'a21d4cfacd65754daa6fbcc72510d5ddc01246f6454358b03b3686d583f65afd'
+      ) || (
+        data.baselineVersion == 'baseline-20261120-fin-1'
+        && data.baselineHash == '5fa05d8dd355fc4b354b54190078aceba90f9354df5834faeb519680bcb94f82'
+      );
+    }
+
     function recordOk(recordId) {
       let data = request.resource.data;
       return baseOk()
@@ -15,8 +26,7 @@ service cloud.firestore {
           'kind', 'reviewId', 'submitterAlias', 'clientId', 'submittedAt',
           'recordJson'
         ])
-        && data.baselineVersion == 'baseline-20261118'
-        && data.baselineHash == 'a21d4cfacd65754daa6fbcc72510d5ddc01246f6454358b03b3686d583f65afd'
+        && supportedRecordBaseline()
         && data.kind in ['posts', 'comments', 'updates']
         && data.reviewId == recordId
         && data.reviewId is string

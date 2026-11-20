@@ -7,11 +7,17 @@
   'use strict';
 
   var DAY = 86400000;
-  var ROLES = ['工程与技术', '产品与项目', '设计', '营销与销售', '招聘与人力', '医疗与健康', '餐饮与酒店', '运营与行政', '其他与未识别'];
+  var ROLES = [
+    '工程与技术', '产品与项目', '设计', '营销与销售', '招聘与人力', '医疗与健康', '餐饮与酒店', '运营与行政', '其他与未识别',
+    '金融保险', '教育培训', '制造业与工业生产', '零售与电商', '物流与运输', '公共部门与非营利', '建筑房地产与工程'
+  ];
   var SIGNAL_LABELS = { salary: '薪资提及', remote: '远程/混合安排', qualification: '资格与经验', benefits: '福利', application: '申请方式', cta: '行动号召' };
   var THEME_LABELS = { pay_benefits: '薪资福利', location_remote: '地点远程', qualification_experience: '资格经验', application_process: '申请流程', application_interest: '申请意向', other: '其他' };
   var POST_FIELDS = ['sourceId', 'url', 'relatedJobUrl', 'text', 'jobFamily', 'publishedAt', 'collectedAt', 'ageDays', 'likes', 'commentsCount', 'reposts', 'batch', 'keyword', 'isDuplicate', 'provenance'];
-  var ROLE_ALIASES = ['Engineering and technology|工程與技術', 'Product and project management|Product and project|產品與專案|產品與項目', 'Design|設計', 'Marketing and sales|行銷與銷售|營銷與銷售', 'Recruiting and HR|招聘與人力', 'Healthcare|醫療與健康', 'Hospitality|餐飲與酒店', 'Operations and administration|營運與行政|運營與行政', 'Other or unclassified|其他與未識別'];
+  var ROLE_ALIASES = [
+    'Engineering and technology|工程與技術', 'Product and project management|Product and project|產品與專案|產品與項目', 'Design|設計', 'Marketing and sales|行銷與銷售|營銷與銷售', 'Recruiting and HR|招聘與人力', 'Healthcare|醫療與健康', 'Hospitality|餐飲與酒店|Hospitality and food service|餐飲酒店', 'Operations and administration|營運與行政|運營與行政|Operations and administration', 'Other or unclassified|其他與未識別|其他與未识别',
+    'Finance and insurance|Financial services|Finance|Insurance|金融保險|金融與保險|金融保险', 'Education and training|Education|Training|教育培訓|教育與培訓|教育培训', 'Manufacturing and industrial production|Manufacturing|Industrial production|製造業與工業生產|制造业与工业生产', 'Retail and e-commerce|Retail|E-commerce|Ecommerce|零售與電商|零售与电商', 'Logistics and transportation|Logistics and transport|Transportation|物流與運輸|物流与运输', 'Public sector and non-profit|Public sector|Non-profit|Nonprofit|公共部門與非營利|公共部门与非营利', 'Architecture, real estate and construction|Construction|Real estate|建築房地產與工程|建筑房地产与工程'
+  ];
   var ROLE_PATTERNS = [
     /\b(?:engineer(?:ing)?|developer|programmer|devops|sre|frontend|backend|full[ -]?stack|data scien(?:ce|tist)|data analyst|data architect|machine learning|cyber[ -]?security|software|technician|it support|quality assurance|qa engineer)\b|工程师|开发|程序员|技术员|前端|后端|算法|数据分析|数据科学|软件|网络安全|运维|测试工程/gi,
     /\b(?:product manager|product owner|project manager|project coordinator|program manager|business analyst|scrum master|product lead|product management)\b|产品经理|产品负责人|产品运营|项目经理|项目管理|项目协调/gi,
@@ -20,8 +26,19 @@
     /\b(?:recruiter|talent acquisition|human resources|hr manager|hr specialist|hrbp|recruitment consultant|recruitment specialist|people operations)\b|招聘专员|招聘顾问|招聘经理|人力资源|人事专员|人事经理/gi,
     /\b(?:nurse|nursing|physician|doctor|dentist|pharmacist|therapist|medical assistant|healthcare assistant|care assistant|clinical|paramedic|radiographer|physiotherapist)\b|护士|医生|医师|药师|理疗|护理|医疗助理|健康顾问/gi,
     /\b(?:chef|cook|barista|bartender|waiter|waitress|housekeeper|restaurant manager|restaurant server|hotel manager|hotel receptionist|hospitality|front desk)\b|厨师|餐饮|酒店|服务员|咖啡师|调酒师|客房|餐厅经理/gi,
-    /\b(?:operations|administrator|administrative|executive assistant|office manager|office assistant|customer support|customer service|customer success|logistics|warehouse|receptionist|coordinator)\b|运营|行政|助理|客服|物流|仓储|前台|文员/gi
+    /\b(?:operations|administrator|administrative|executive assistant|office manager|office assistant|customer support|customer service|customer success|logistics|warehouse|receptionist|coordinator)\b|运营|行政|助理|客服|物流|仓储|前台|文员/gi,
+    /(?!)/g,
+    /\b(?:finance|financial|banking|bank|insurance|insurer|underwriter|actuary|wealth management|investment|risk analyst|financial analyst)\b|金融|保险|保險|银行|銀行|投资|投資|理财|理財|精算/g,
+    /\b(?:education|educational|teacher|teaching|tutor|school|college|university|lecturer|professor|curriculum|student services)\b|教育|教师|教師|老师|老師|学校|學校|大学|大學|学院|學院|导师|導師|培训|培訓|课程|課程/g,
+    /\b(?:manufacturing|factory|industrial production|production operator|production supervisor|assembly|machinist|industrial engineer|plant manager|quality manager)\b|制造|製造|工厂|工廠|工业生产|工業生產|生产|生產|装配|裝配|车间|車間|机械加工|機械加工/g,
+    /\b(?:retail|e-commerce|ecommerce|online store|online shop|store manager|shop manager|merchandising|merchandiser|sales associate|checkout|cashier)\b|零售|电商|電商|网店|網店|门店|門店|店铺|店鋪|收银|收銀|商品运营|商品營運/g,
+    /\b(?:logistics|transportation|transport|freight|shipping|supply chain|courier|warehouse|fleet|driver|distribution|dispatch)\b|物流|运输|運輸|货运|貨運|快递|快遞|仓储|倉儲|配送|供应链|供應鏈|车队|車隊|驾驶|駕駛/g,
+    /\b(?:public sector|government|civil service|municipal|non-profit|nonprofit|ngo|charity|foundation|social services)\b|公共部门|公共部門|政府|公务|公務|非营利|非營利|公益|慈善|社会组织|社會組織/g,
+    /\b(?:construction|real estate|property development|architecture|architect|civil engineer|structural engineer|site engineer|quantity surveyor|building|contractor|bim)\b|建筑|建築|房地产|房地產|工程|施工|工地|土木|结构|結構|造价|造價|测绘|測繪|物业|物業|开发商|開發商|总承包|總承包/g
   ];
+  var postSignalCache = new WeakMap();
+  var postRoleCache = new WeakMap();
+  var postAgeCache = new WeakMap();
 
   function own(o, key) { return !!o && Object.prototype.hasOwnProperty.call(o, key); }
   function str(value) { return value === null || value === undefined ? '' : String(value); }
@@ -146,6 +163,69 @@
     return best >= 0 ? ROLES[best] : ROLES[8];
   }
 
+  var INDUSTRY_CODE_ROLES = {
+    IND_CRE_ENG: ROLES[15],
+    CRE: ROLES[15],
+    CONSTRUCTION: ROLES[15],
+    IND_EDU_TRAIN: ROLES[10],
+    EDU: ROLES[10],
+    EDUCATION: ROLES[10],
+    IND_MFG_IND: ROLES[11],
+    MFG: ROLES[11],
+    MANUFACTURING: ROLES[11],
+    IND_HOS: ROLES[6],
+    HOS: ROLES[6],
+    IND_HEALTH: ROLES[5],
+    HLT: ROLES[5],
+    HEALTHCARE: ROLES[5],
+    IND_OPS_ADMIN: ROLES[7],
+    OPS: ROLES[7],
+    OPERATIONS_ADMIN: ROLES[7],
+    IND_FIN_INS: ROLES[9],
+    FIN: ROLES[9],
+    FINANCE: ROLES[9],
+    INSURANCE: ROLES[9],
+    IND_RETAIL_ECOMM: ROLES[12],
+    RETAIL: ROLES[12],
+    ECOMMERCE: ROLES[12],
+    IND_LOG_TRANS: ROLES[13],
+    LOGISTICS: ROLES[13],
+    TRANSPORT: ROLES[13],
+    IND_PUB_NONPROFIT: ROLES[14],
+    PUBLIC: ROLES[14],
+    NONPROFIT: ROLES[14]
+  };
+  var INDUSTRY_MARKERS = [
+    { role: ROLES[9], pattern: /\b(?:finance|financial|banking|insurance|insurer|underwriter|actuary)\b|金融|保险|保險|银行|銀行|投资|投資|理财|理財/g },
+    { role: ROLES[10], pattern: /\b(?:education|educational|teacher|teaching|tutor|school|college|university|lecturer|professor|training)\b|教育|教师|教師|老师|老師|学校|學校|大学|大學|培训|培訓/g },
+    { role: ROLES[11], pattern: /\b(?:manufacturing|factory|industrial production|assembly|machinist)\b|制造|製造|工厂|工廠|工业生产|工業生產|装配|裝配|车间|車間/g },
+    { role: ROLES[12], pattern: /\b(?:retail|e-commerce|ecommerce|online store|store manager|merchandising|cashier)\b|零售|电商|電商|网店|網店|门店|門店|店铺|店鋪|收银|收銀/g },
+    { role: ROLES[13], pattern: /\b(?:logistics|transportation|transport|freight|shipping|supply chain|courier|warehouse|fleet|dispatch)\b|物流|运输|運輸|货运|貨運|快递|快遞|仓储|倉儲|配送|供应链|供應鏈/g },
+    { role: ROLES[14], pattern: /\b(?:public sector|government|civil service|municipal|non-profit|nonprofit|ngo|charity|social services)\b|公共部门|公共部門|政府|公务|公務|非营利|非營利|公益|慈善|社会组织|社會組織/g },
+    { role: ROLES[15], pattern: /\b(?:construction|real estate|property development|architecture|architect|civil engineer|structural engineer|site engineer|quantity surveyor|contractor|bim)\b|建筑|建築|房地产|房地產|施工|土木|结构工程|結構工程|造价|造價|测绘|測繪|物业|物業|开发商|開發商|总承包|總承包/g }
+  ];
+  function inferIndustryRole(row, text, keyword) {
+    var batch = trimmed(pick(row, ['batch', 'batch_id', 'batchId', 'industry_code', 'industryCode']));
+    if (INDUSTRY_CODE_ROLES[batch]) return INDUSTRY_CODE_ROLES[batch];
+    var industry = trimmed(pick(row, ['industry', 'industry_name', '行业', '行業', '行业类别', '行業類別']));
+    var key = trimmed(keyword);
+    var labels = [batch, industry, key].join(' ');
+    for (var i = 0; i < INDUSTRY_MARKERS.length; i += 1) {
+      var marker = INDUSTRY_MARKERS[i];
+      marker.pattern.lastIndex = 0;
+      if (marker.pattern.test(labels)) return marker.role;
+    }
+    var body = str(text).slice(0, 1200);
+    var best = '', score = 0;
+    for (var j = 0; j < INDUSTRY_MARKERS.length; j += 1) {
+      var current = INDUSTRY_MARKERS[j];
+      current.pattern.lastIndex = 0;
+      var hits = (body.match(current.pattern) || []).length;
+      if (hits > score) { score = hits; best = current.role; }
+    }
+    return score >= 2 ? best : '';
+  }
+
   function parseCSV(raw) {
     var text = str(raw).replace(/^\uFEFF/, '');
     if (!text.trim()) return [];
@@ -201,7 +281,7 @@
     if (value instanceof Date) return isFinite(value.getTime()) ? new Date(value.getTime()) : null;
     if (typeof value === 'number') return isFinite(value) && value >= 0 && isFinite(new Date(value).getTime()) ? new Date(value) : null;
     var text = trimmed(value);
-    var m = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:(?:T| )\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/);
+    var m = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:(?:T| )\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/);
     if (!m) return null;
     var year = +m[1], month = +m[2], day = +m[3];
     if (month < 1 || month > 12 || day < 1 || day > new Date(Date.UTC(year, month, 0)).getUTCDate()) return null;
@@ -229,11 +309,13 @@
     return +m[1] * (/^(?:w|周|星期)/.test(unit) ? 7 : /^(?:mo|个月|月)/.test(unit) ? 30 : /^(?:y|年)/.test(unit) ? 365 : 1);
   }
   function roleFor(row, text, keyword, errors, warnings) {
+    var industryRole = inferIndustryRole(row, text, keyword);
+    if (industryRole) return industryRole;
     var provided = trimmed(pick(row, ['jobFamily', 'job_family', 'role', 'job_category', '岗位类别', '岗位', '職位類別', '崗位類別', '職位']));
     var alias=ROLE_ALIASES.findIndex(function(list){return list.toLowerCase().split('|').indexOf(provided.toLowerCase())>=0;});
     if(alias>=0)provided=ROLES[alias];
     var role = ROLES.indexOf(provided) >= 0 ? provided : inferRole(text, provided || keyword);
-    if (!provided && role === ROLES[8]) errors.push('缺少可识别的岗位类别，请明确填写九类岗位之一');
+    if (!provided && role === ROLES[8]) errors.push('缺少可识别的岗位类别，请明确选择或填写岗位类别');
     if (provided && ROLES.indexOf(provided) < 0) warnings.push('岗位“' + provided + '”已归入“' + role + '”');
     return role;
   }
@@ -245,7 +327,7 @@
     options = options || {};
     var errors = [], warnings = [], now = nowDate(options);
     var url = normalizeUrl(pick(row, ['url', 'post_url', 'postUrl', 'permalink', 'link', '链接', '帖子链接', '連結', '貼文連結']));
-    if (!url) errors.push('必须提供有效的 LinkedIn 帖子链接（feed/update URN 或含 activity ID 的 /posts/ 链接）');
+    if (!url) warnings.push('缺少可用 LinkedIn 帖子链接；记录可保留，但无法从页面直接回查原帖');
     var rawJobUrl=trimmed(pick(row,['relatedJobUrl','related_job_url','job_url','职位链接','職位連結','相关职位链接','相關職位連結']));
     var relatedJobUrl=normalizeJobUrl(rawJobUrl);
     if(rawJobUrl&&!relatedJobUrl)errors.push('相关职位链接须为有效的 LinkedIn /jobs/view/ 职位详情链接');
@@ -390,13 +472,25 @@
     dataset.comments = clone(Array.isArray(baseline.comments) ? baseline.comments : []);
     dataset.meta = clone(baseline.meta || {});
     var addedPosts = 0, addedComments = 0, appliedUpdates = 0, skipped = [];
+    var approvedPosts = [];
     (Array.isArray(additions.posts) ? additions.posts : []).forEach(function (entry) {
       var raw = unwrap(entry);
       if (!raw || !approved(entry, raw) || (entry.errors && entry.errors.length) || bool(raw.isDuplicate)) return;
-      var result = deduplicatePosts([raw], dataset.posts);
-      if (!result.unique.length) { skipped.push({ type: 'post', id: str(raw.id), reason: '已存在或正文重复；同帖新快照需在 updates 中单独审批' }); return; }
+      approvedPosts.push(raw);
+    });
+    var incomingPosts = deduplicatePosts(approvedPosts, dataset.posts);
+    incomingPosts.unique.forEach(function (raw) {
       var record = clone(raw); record.reviewStatus = 'approved'; record.analysisEligible = newEligibility(record);
       dataset.posts.push(record); addedPosts++;
+    });
+    incomingPosts.duplicates.forEach(function (item) {
+      skipped.push({ type: 'post', id: str(item.record && item.record.id), reason: '已存在或正文重复；同帖新快照需在 updates 中单独审批' });
+    });
+    incomingPosts.updates.forEach(function (item) {
+      skipped.push({ type: 'post', id: str(item.record && item.record.id), reason: '检测到同帖新快照；须在 updates 中单独审批' });
+    });
+    incomingPosts.errors.forEach(function (item) {
+      skipped.push({ type: 'post', id: str(item.record && item.record.id), reason: (item.errors || ['帖子校验失败']).join('；') });
     });
     (Array.isArray(additions.updates) ? additions.updates : []).forEach(function (entry) {
       var raw = unwrap(entry);
@@ -436,10 +530,14 @@
   }
 
   function ageOf(post) {
+    if (post && typeof post === 'object' && postAgeCache.has(post)) return postAgeCache.get(post);
     var age = parsedAge(own(post, 'ageDays') ? post.ageDays : post.days);
-    if (age !== null) return age;
-    var published = parseDate(post.publishedAt), collected = parseDate(post.collectedAt);
-    return published && collected && collected >= published ? Math.floor((collected - published) / DAY) : null;
+    if (age === null) {
+      var published = parseDate(post.publishedAt), collected = parseDate(post.collectedAt);
+      age = published && collected && collected >= published ? Math.floor((collected - published) / DAY) : null;
+    }
+    if (post && typeof post === 'object') postAgeCache.set(post, age);
+    return age;
   }
   function ageBucket(postOrAge) {
     var age = typeof postOrAge === 'object' && postOrAge ? ageOf(postOrAge) : parsedAge(postOrAge);
@@ -470,7 +568,12 @@
     var metric = ({ comments: 'commentsCount', commentsCount: 'commentsCount', reposts: 'reposts', shares: 'reposts', likes: 'likes' })[filters.metric] || 'likes';
     var rawPosts = (Array.isArray(dataset.posts) ? dataset.posts : []).filter(active);
     var uniquePosts = rawPosts.filter(function (p) { return !bool(p.isDuplicate); });
-    function roleOf(post) { return ROLES.indexOf(post.jobFamily) >= 0 ? post.jobFamily : inferRole(post.text, post.keyword); }
+    function roleOf(post) {
+      if (post && typeof post === 'object' && postRoleCache.has(post)) return postRoleCache.get(post);
+      var role = ROLES.indexOf(post.jobFamily) >= 0 ? post.jobFamily : inferRole(post.text, post.keyword);
+      if (post && typeof post === 'object') postRoleCache.set(post, role);
+      return role;
+    }
     function scope(post) { return (roleFilter === 'all' || roleOf(post) === roleFilter) && (batchFilter === 'all' || str(post.batch) === str(batchFilter)); }
     var eligibleBeforeAge = uniquePosts.filter(function (p) { return eligible(p) && scope(p); });
     var missingAge = eligibleBeforeAge.filter(function (p) { return ageOf(p) === null; }).length;
@@ -485,7 +588,14 @@
     var orphanCount = nonempty.filter(function (c) { return !rawIdSet.has(str(c.postId)); }).length;
     var duplicateLinked = nonempty.filter(function (c) { return rawIdSet.has(str(c.postId)) && !uniqueIdSet.has(str(c.postId)); }).length;
     var signalCache = new Map();
-    posts.forEach(function (p) { signalCache.set(p, extractSignals(p.text)); });
+    posts.forEach(function (p) {
+      var signals = postSignalCache.get(p);
+      if (!signals) {
+        signals = extractSignals(p.text);
+        postSignalCache.set(p, signals);
+      }
+      signalCache.set(p, signals);
+    });
     var roles = ROLES.map(function (role) {
       var group = posts.filter(function (p) { return roleOf(p) === role; });
       return { role: role, n: group.length, likesMedian: median(group.map(function (p) { return metricValue(p, 'likes'); })), commentsMedian: median(group.map(function (p) { return metricValue(p, 'commentsCount'); })), repostsMedian: median(group.map(function (p) { return metricValue(p, 'reposts'); })), salaryRate: group.length ? group.filter(function (p) { return signalCache.get(p).salary.present; }).length / group.length : null, remoteRate: group.length ? group.filter(function (p) { return signalCache.get(p).remote.present; }).length / group.length : null };
@@ -550,5 +660,5 @@
     return result;
   }
 
-  return { VERSION: '1.0.0', ROLES: ROLES.slice(), SIGNAL_LABELS: clone(SIGNAL_LABELS), THEME_LABELS: clone(THEME_LABELS), normalizeUrl: normalizeUrl, normalizeJobUrl: normalizeJobUrl, extractSignals: extractSignals, inferRole: inferRole, redactText: redactText, parseCSV: parseCSV, toCSV: toCSV, normalizePost: normalizePost, normalizeComment: normalizeComment, deduplicatePosts: deduplicatePosts, buildDataset: buildDataset, computeAnalytics: computeAnalytics, auditImport: auditImport, ageBucket: ageBucket, themeKeys: themeKeys, median: median };
+  return { VERSION: '1.1.0', ROLES: ROLES.slice(), SIGNAL_LABELS: clone(SIGNAL_LABELS), THEME_LABELS: clone(THEME_LABELS), normalizeUrl: normalizeUrl, normalizeJobUrl: normalizeJobUrl, extractSignals: extractSignals, inferRole: inferRole, inferIndustryRole: inferIndustryRole, redactText: redactText, parseCSV: parseCSV, toCSV: toCSV, normalizePost: normalizePost, normalizeComment: normalizeComment, deduplicatePosts: deduplicatePosts, buildDataset: buildDataset, computeAnalytics: computeAnalytics, auditImport: auditImport, ageBucket: ageBucket, themeKeys: themeKeys, median: median };
 });
