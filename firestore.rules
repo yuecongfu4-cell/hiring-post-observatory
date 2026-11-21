@@ -15,6 +15,18 @@ service cloud.firestore {
       ) || (
         data.baselineVersion == 'baseline-20261120-fin-1'
         && data.baselineHash == '5fa05d8dd355fc4b354b54190078aceba90f9354df5834faeb519680bcb94f82'
+      ) || (
+        data.baselineVersion == 'baseline-20261120-public-1'
+        && data.baselineHash == '23b4bc06501fbcb433a39df0862fce666ff57dc19cbe86aada1689989b4c8573'
+      ) || (
+        data.baselineVersion == 'baseline-20261120-retail-1'
+        && data.baselineHash == '59667fd44677f73350e040240f4be002f039b3082a6112fd0576beda0ac59c84'
+      ) || (
+        data.baselineVersion == 'baseline-20261120-health-2'
+        && data.baselineHash == '7c6d947c402cfcd0d62c477401df790264e2da697de182b3a64cd152b321e7e7'
+      ) || (
+        data.baselineVersion == 'baseline-20261121-supp-1'
+        && data.baselineHash == '50078ec6adfb10797019d4852f5d251a8e85398580e100170b68baf957f4183f'
       );
     }
 
