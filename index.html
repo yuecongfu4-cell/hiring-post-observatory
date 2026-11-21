@@ -6,8 +6,8 @@
   <meta name="description" content="从真实招聘帖与评论出发，比较岗位互动、文案信息与求职者关注点。支持本地导入、审核和冻结报告版本。">
   <meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#F7F7F8">
   <meta property="og:title" content="职帖观察站"><meta property="og:description" content="真实样本，可持续补充，可回查的研究版本"><meta property="og:image" content="assets/social.svg">
-  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="styles.css?v=20261118-i18n-2"><link rel="stylesheet" href="swiss.css?v=20261120-swiss-2">
-  <script src="i18n-catalog.js?v=4" defer></script><script src="industry-i18n.js?v=20261120-roles-2" defer></script><script src="cloud-i18n.js?v=20261120-db-3" defer></script><script src="i18n.js?v=3" defer></script><script src="data/baseline.js?data=20261120-fin-1" defer></script><script src="core.js?v=20261120-capacity-1" defer></script><script src="workspace.js?v=20261118-cloud-1" defer></script><script src="localdb.js?v=20261120-db-3" defer></script><script src="vendor/jszip.min.js" defer></script><script src="imports.js?v=20261120-db-3" defer></script><script src="cloud.js?v=20261120-capacity-1" defer></script><script src="app.js?v=20261120-capacity-1" defer></script>
+  <link rel="icon" href="favicon.ico" sizes="any"><link rel="icon" href="assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="styles.css?v=20261118-i18n-2"><link rel="stylesheet" href="swiss.css?v=20261122-tools-1">
+  <script src="i18n-catalog.js?v=20261122-tools-1" defer></script><script src="industry-i18n.js?v=20261120-roles-2" defer></script><script src="cloud-i18n.js?v=20261120-db-3" defer></script><script src="i18n.js?v=3" defer></script><script src="data/baseline-supp-1.js" defer></script><script src="data/rule-analysis.js?v=1" defer></script><script src="core.js?v=20261121-supp-1" defer></script><script src="job-post-checker.js?v=1" defer></script><script src="workspace.js?v=20261118-cloud-1" defer></script><script src="localdb.js?v=20261120-db-3" defer></script><script src="vendor/jszip.min.js" defer></script><script src="imports.js?v=20261120-db-3" defer></script><script src="cloud.js?v=20261120-capacity-2" defer></script><script src="app.js?v=20261122-tools-1" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">跳到主要内容</a>
@@ -16,15 +16,20 @@
     <div class="nav-label">研究分析</div>
     <nav id="main-nav">
       <button data-page="overview" class="nav-item active" aria-current="page"><span class="nav-number">01</span>研究概览</button>
-      <button data-page="roles" class="nav-item"><span class="nav-number">02</span>岗位与互动</button>
-      <button data-page="signals" class="nav-item"><span class="nav-number">03</span>文案特征</button>
-      <button data-page="comments" class="nav-item"><span class="nav-number">04</span>评论关注点</button>
+      <button data-page="insights" class="nav-item"><span class="nav-number">02</span>核心结论</button>
+      <button data-page="roles" class="nav-item"><span class="nav-number">03</span>岗位与互动</button>
+      <button data-page="signals" class="nav-item"><span class="nav-number">04</span>文案特征</button>
+      <button data-page="comments" class="nav-item"><span class="nav-number">05</span>评论关注点</button>
+    </nav>
+    <div class="nav-label">实用工具</div>
+    <nav>
+      <button data-page="checker" class="nav-item nav-tool"><span class="nav-number">06</span>招聘帖文案打分器</button>
     </nav>
     <div class="nav-label">数据管理</div>
     <nav>
-      <button data-page="library" class="nav-item"><span class="nav-number">05</span>帖子样本库</button>
-      <button data-page="review" class="nav-item"><span class="nav-number">06</span>审核新增数据<span id="pending-badge" class="nav-badge" hidden>0</span></button>
-      <button data-page="versions" class="nav-item"><span class="nav-number">07</span>报告与版本</button>
+      <button data-page="library" class="nav-item"><span class="nav-number">07</span>帖子样本库</button>
+      <button data-page="review" class="nav-item"><span class="nav-number">08</span>审核新增数据<span id="pending-badge" class="nav-badge" hidden>0</span></button>
+      <button data-page="versions" class="nav-item"><span class="nav-number">09</span>报告与版本</button>
     </nav>
     <div class="sidebar-bottom"><div class="source-label"><span class="status-dot cloud-connecting" id="cloud-status-dot"></span><span id="cloud-status-text">正在连接全组数据</span></div><p id="cloud-status-detail">大量数据保存在本机 IndexedDB，并同步到 Firebase。</p><button class="cloud-sync-button" id="cloud-sync-now" type="button">立即同步</button><a href="help.html">数据口径与使用帮助</a><div class="footer-links"><a href="privacy.html">隐私说明</a><a href="terms.html">使用说明</a></div></div>
   </aside>
@@ -36,7 +41,7 @@
       <div id="storage-warning" class="notice warning" hidden></div>
       <section class="filter-bar" id="filters" aria-label="分析筛选"><label>岗位类别<select id="role-filter"><option value="all">全部岗位</option></select></label><label title="从发布时间到记录互动数时经过多久；不是距离今天的时间">发布至采集时长<select id="age-filter"><option value="all">全部时长</option><option value="0-7">0 至 7 天</option><option value="8-30">8 至 30 天</option><option value="31-90">31 至 90 天</option><option value="91-180">91 至 180 天</option><option value="180+">超过 180 天</option><option value="unknown">时长未知</option></select></label><button class="button quiet" id="reset-filters">重置筛选</button><span class="filter-count" id="filter-count"></span></section>
       <div id="view-root"><div class="loading-placeholder">正在读取原始样本和分析规则</div></div>
-      <footer class="main-footer"><span>COM5507 · 独立课程研究，与 LinkedIn 无隶属或合作关系</span><span>可见互动反映关注，不等同于招聘效果</span></footer>
+      <footer class="main-footer"><span>COM5507 · 独立课程研究，与 LinkedIn 无隶属或合作关系</span><span>可见互动反映关注，不等同于招聘效果</span><span>背景图 <a href="https://unsplash.com/photos/QckxruozjRg" target="_blank" rel="noopener noreferrer">Annie Spratt / Unsplash</a></span></footer>
     </main>
   </div>
   <dialog id="entry-dialog" aria-labelledby="entry-title"><div class="dialog-header"><div><p class="eyebrow">补充研究数据</p><h2 id="entry-title">添加真实帖子</h2></div><button class="button quiet close-dialog" aria-label="关闭添加窗口">关闭</button></div><div class="dialog-tabs" role="tablist" aria-label="数据类型"><button data-entry="post" role="tab">真实帖子</button><button data-entry="comment" role="tab">评论</button><button data-entry="import" role="tab">批量导入</button><button data-entry="draft" role="tab">草稿体检</button></div><div id="entry-content"></div></dialog>
